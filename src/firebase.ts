@@ -3,12 +3,12 @@ import { getFirestore, enableIndexedDbPersistence, collection, getDocs, addDoc, 
 import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: "AIzaSyB4tcpN50rPxU5rRHLbFFxgRV6bWdIVbLc",
+  authDomain: "arclyc-c08bc.firebaseapp.com",
+  projectId: "arclyc-c08bc",
+  storageBucket: "arclyc-c08bc.firebasestorage.app",
+  messagingSenderId: "109415460260",
+  appId: "1:109415460260:web:ce63c0ec3c93a51eade531"
 };
 
 // Initialize Firebase

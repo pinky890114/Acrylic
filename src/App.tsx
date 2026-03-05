@@ -49,24 +49,36 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+
   const fetchData = async () => {
     setIsLoading(true);
     setError(null);
+    setErrorDetails(null);
+    
+    // Add a timeout to prevent infinite loading
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('連線逾時，請檢查網路狀況')), 15000);
+    });
+
     try {
-      const [fetchedItems, fetchedCategories, fetchedRecipes] = await Promise.all([
-        dbApi.getAllItems(),
-        dbApi.getAllCategories(),
-        dbApi.getAllRecipes()
-      ]);
+      const [fetchedItems, fetchedCategories, fetchedRecipes] = await Promise.race([
+        Promise.all([
+          dbApi.getAllItems(),
+          dbApi.getAllCategories(),
+          dbApi.getAllRecipes()
+        ]),
+        timeoutPromise
+      ]) as [SequinItem[], Category[], Recipe[]];
 
       // Check for server data loss (Server empty but Local has data)
+      // ... (rest of the logic)
       const localItems = await localDb.getAllItems();
       const localCategories = await localDb.getAllCategories();
       const localRecipes = await localDb.getAllRecipes();
 
       if (fetchedItems.length === 0 && localItems.length > 0) {
-        console.log('Detecting server data reset. Restoring from local backup...');
-        
+        // ... (rest of the logic)
         // Restore Categories first
         if (localCategories.length > 0) {
           await dbApi.addCategories(localCategories);
@@ -90,19 +102,15 @@ function App() {
         } else {
           setRecipes(fetchedRecipes);
         }
-
-        // Show a non-blocking notification or just log it
-        // We can use the error state temporarily to inform the user, but it might be alarming.
-        // Better to just let it happen silently or add a toast system later.
-        // For now, let's just set the state.
       } else {
         setItems(fetchedItems);
         setCategories(fetchedCategories);
         setRecipes(fetchedRecipes);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch data:', error);
       setError('無法載入資料，請檢查網路連線或稍後再試。');
+      setErrorDetails(error.message || String(error));
       
       // Try to load from local DB as fallback
       try {
@@ -337,7 +345,12 @@ function App() {
               <AlertCircle className="w-12 h-12 text-red-500" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">載入失敗</h3>
-            <p className="text-gray-500 mb-6">{error}</p>
+            <p className="text-gray-500 mb-2">{error}</p>
+            {errorDetails && (
+              <p className="text-xs text-red-400 mb-6 max-w-md bg-red-50 p-2 rounded border border-red-100 font-mono">
+                {errorDetails}
+              </p>
+            )}
             <button
               onClick={fetchData}
               className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors shadow-sm font-medium"
@@ -348,7 +361,16 @@ function App() {
         ) : isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-10 h-10 text-teal-600 animate-spin mb-4" />
-            <p className="text-gray-500">正在載入資料...</p>
+            <p className="text-gray-500 mb-4">正在載入資料...</p>
+            <button
+              onClick={() => {
+                setIsLoading(false);
+                setError('載入已取消，目前顯示離線模式。');
+              }}
+              className="text-sm text-gray-400 hover:text-gray-600 underline"
+            >
+              取消載入 (顯示離線資料)
+            </button>
           </div>
         ) : (
           <>

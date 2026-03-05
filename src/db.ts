@@ -58,7 +58,7 @@ export const dbApi = {
       return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SequinItem[];
     } catch (error) {
       console.error('Error getting items from Firebase:', error);
-      return [];
+      throw error;
     }
   },
 
@@ -94,27 +94,36 @@ export const dbApi = {
   },
 
   async addItems(items: SequinItem[]) {
-    const batch = writeBatch(db);
-    const results: SequinItem[] = [];
-    
-    for (const item of items) {
-      let imageUrl = item.imageUrl;
-      if (imageUrl && imageUrl.startsWith('data:')) {
-        try {
-          imageUrl = await uploadImage(imageUrl, `items/${Date.now()}_${item.name}`);
-        } catch (e) {
-          console.warn('Failed to upload image for item:', item.name, e);
-          imageUrl = undefined;
+    try {
+      const batch = writeBatch(db);
+      const results: SequinItem[] = [];
+      
+      // Process items in parallel to upload images
+      const processedItems = await Promise.all(items.map(async (item) => {
+        let imageUrl = item.imageUrl;
+        if (imageUrl && imageUrl.startsWith('data:')) {
+          try {
+            imageUrl = await uploadImage(imageUrl, `items/${Date.now()}_${item.name}`);
+          } catch (e) {
+            console.warn('Failed to upload image for item:', item.name, e);
+            imageUrl = undefined;
+          }
         }
+        return { ...item, imageUrl };
+      }));
+      
+      for (const item of processedItems) {
+        const docRef = item.id ? doc(db, 'items', item.id) : doc(collection(db, 'items'));
+        batch.set(docRef, item);
+        results.push({ ...item, id: docRef.id });
       }
       
-      const docRef = item.id ? doc(db, 'items', item.id) : doc(collection(db, 'items'));
-      batch.set(docRef, { ...item, imageUrl });
-      results.push({ ...item, id: docRef.id, imageUrl });
+      await batch.commit();
+      return results;
+    } catch (error) {
+      console.error('Error adding items to Firebase:', error);
+      throw error;
     }
-    
-    await batch.commit();
-    return results;
   },
   
   async deleteItem(id: string) {
@@ -144,7 +153,7 @@ export const dbApi = {
       return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Category[];
     } catch (error) {
       console.error('Error getting categories from Firebase:', error);
-      return [];
+      throw error;
     }
   },
   
@@ -160,17 +169,22 @@ export const dbApi = {
   },
 
   async addCategories(categories: Category[]) {
-    const batch = writeBatch(db);
-    const results: Category[] = [];
-    
-    for (const category of categories) {
-      const docRef = category.id ? doc(db, 'categories', category.id) : doc(collection(db, 'categories'));
-      batch.set(docRef, category);
-      results.push({ ...category, id: docRef.id });
+    try {
+      const batch = writeBatch(db);
+      const results: Category[] = [];
+      
+      for (const category of categories) {
+        const docRef = category.id ? doc(db, 'categories', category.id) : doc(collection(db, 'categories'));
+        batch.set(docRef, category);
+        results.push({ ...category, id: docRef.id });
+      }
+      
+      await batch.commit();
+      return results;
+    } catch (error) {
+      console.error('Error adding categories to Firebase:', error);
+      throw error;
     }
-    
-    await batch.commit();
-    return results;
   },
   
   async deleteCategory(id: string) {
@@ -189,7 +203,7 @@ export const dbApi = {
       return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Recipe[];
     } catch (error) {
       console.error('Error getting recipes from Firebase:', error);
-      return [];
+      throw error;
     }
   },
 
@@ -225,27 +239,36 @@ export const dbApi = {
   },
 
   async addRecipes(recipes: Recipe[]) {
-    const batch = writeBatch(db);
-    const results: Recipe[] = [];
-    
-    for (const recipe of recipes) {
-      let imageUrl = recipe.imageUrl;
-      if (imageUrl && imageUrl.startsWith('data:')) {
-        try {
-          imageUrl = await uploadImage(imageUrl, `recipes/${Date.now()}_${recipe.name}`);
-        } catch (e) {
-          console.warn('Failed to upload image for recipe:', recipe.name, e);
-          imageUrl = undefined;
+    try {
+      const batch = writeBatch(db);
+      const results: Recipe[] = [];
+      
+      // Process recipes in parallel to upload images
+      const processedRecipes = await Promise.all(recipes.map(async (recipe) => {
+        let imageUrl = recipe.imageUrl;
+        if (imageUrl && imageUrl.startsWith('data:')) {
+          try {
+            imageUrl = await uploadImage(imageUrl, `recipes/${Date.now()}_${recipe.name}`);
+          } catch (e) {
+            console.warn('Failed to upload image for recipe:', recipe.name, e);
+            imageUrl = undefined;
+          }
         }
+        return { ...recipe, imageUrl };
+      }));
+      
+      for (const recipe of processedRecipes) {
+        const docRef = recipe.id ? doc(db, 'recipes', recipe.id) : doc(collection(db, 'recipes'));
+        batch.set(docRef, recipe);
+        results.push({ ...recipe, id: docRef.id });
       }
       
-      const docRef = recipe.id ? doc(db, 'recipes', recipe.id) : doc(collection(db, 'recipes'));
-      batch.set(docRef, { ...recipe, imageUrl });
-      results.push({ ...recipe, id: docRef.id, imageUrl });
+      await batch.commit();
+      return results;
+    } catch (error) {
+      console.error('Error adding recipes to Firebase:', error);
+      throw error;
     }
-    
-    await batch.commit();
-    return results;
   },
   
   async deleteRecipe(id: string) {

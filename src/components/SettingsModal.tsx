@@ -16,6 +16,7 @@ export function SettingsModal({ isOpen, onClose, categories, onUpdate }: Setting
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState('#0d9488');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
   
   const [isImporting, setIsImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<{
@@ -27,15 +28,23 @@ export function SettingsModal({ isOpen, onClose, categories, onUpdate }: Setting
 
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCategoryName.trim()) return;
+    if (!newCategoryName.trim() || isAddingCategory) return;
 
-    await dbApi.addCategory({
-      id: generateId(),
-      name: newCategoryName.trim(),
-      color: newCategoryColor,
-    });
-    setNewCategoryName('');
-    onUpdate();
+    setIsAddingCategory(true);
+    try {
+      await dbApi.addCategory({
+        id: generateId(),
+        name: newCategoryName.trim(),
+        color: newCategoryColor,
+      });
+      setNewCategoryName('');
+      onUpdate();
+    } catch (error) {
+      console.error('Failed to add category:', error);
+      alert('新增分類失敗');
+    } finally {
+      setIsAddingCategory(false);
+    }
   };
 
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -73,6 +82,7 @@ export function SettingsModal({ isOpen, onClose, categories, onUpdate }: Setting
       setImportProgress({ current: 0, total: totalItems });
 
       let globalImportedCount = 0;
+      let globalFailedCount = 0;
       const failedItems: string[] = [];
 
       const runBatch = async <T extends { name: string }>(data: T[], apiCall: (chunk: T[]) => Promise<any>) => {
@@ -84,6 +94,10 @@ export function SettingsModal({ isOpen, onClose, categories, onUpdate }: Setting
               await apiCall(chunk);
               globalImportedCount += chunk.length;
               setImportProgress({ current: globalImportedCount, total: totalItems });
+              setImportStatus({ 
+                type: 'info', 
+                message: `正在匯入... (成功: ${globalImportedCount - globalFailedCount}, 失敗: ${globalFailedCount})` 
+              });
               // Small delay to prevent server overload
               await new Promise(r => setTimeout(r, 50));
               break;
@@ -93,7 +107,18 @@ export function SettingsModal({ isOpen, onClose, categories, onUpdate }: Setting
               if (retries === 0) {
                 // If a batch fails, we log the first item name as a representative
                 failedItems.push(`${chunk[0]?.name || 'Unknown'} (及其他 ${chunk.length - 1} 筆)`);
+                globalFailedCount += chunk.length;
+                globalImportedCount += chunk.length; // Treat as processed even if failed
+                setImportProgress({ current: globalImportedCount, total: totalItems });
+                setImportStatus({ 
+                  type: 'info', 
+                  message: `正在匯入... (成功: ${globalImportedCount - globalFailedCount}, 失敗: ${globalFailedCount})` 
+                });
               } else {
+                setImportStatus({ 
+                  type: 'info', 
+                  message: `批次匯入失敗，正在重試 (${3 - retries}/3)...` 
+                });
                 await new Promise(r => setTimeout(r, 1000));
               }
             }
@@ -129,7 +154,7 @@ export function SettingsModal({ isOpen, onClose, categories, onUpdate }: Setting
       if (failedItems.length > 0) {
         setImportStatus({ 
           type: 'error', 
-          message: `匯入完成，但有部分資料失敗：${failedItems.join(', ')}` 
+          message: `匯入完成，成功: ${globalImportedCount - globalFailedCount}，失敗: ${globalFailedCount}。失敗項目：${failedItems.join(', ')}` 
         });
       } else {
         setImportStatus({ type: 'success', message: `成功匯入 ${globalImportedCount} 筆資料！` });
@@ -314,9 +339,10 @@ export function SettingsModal({ isOpen, onClose, categories, onUpdate }: Setting
                   />
                   <button
                     type="submit"
-                    className="p-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                    disabled={isAddingCategory}
+                    className="p-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Plus className="w-5 h-5" />
+                    {isAddingCategory ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
                   </button>
                 </form>
               </div>

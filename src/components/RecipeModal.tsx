@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SequinItem, Recipe, dbApi, RecipeItem, Category } from '../db';
 import { cn, generateId } from '../lib/utils';
-import { X, Upload, Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Plus, Trash2, Loader2 } from 'lucide-react';
 
 interface RecipeModalProps {
   isOpen: boolean;
@@ -20,6 +20,7 @@ export function RecipeModal({ isOpen, onClose, onSave, editingRecipe, inventoryI
     imageUrl: '',
   });
   const [itemCategories, setItemCategories] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (editingRecipe) {
@@ -87,18 +88,28 @@ export function RecipeModal({ isOpen, onClose, onSave, editingRecipe, inventoryI
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const recipe: Recipe = {
-      id: editingRecipe?.id || generateId(),
-      name: formData.name || '未命名配方',
-      items: formData.items || [],
-      imageUrl: formData.imageUrl,
-      notes: formData.notes || '',
-      createdAt: editingRecipe?.createdAt || Date.now(),
-    };
+    if (isSubmitting) return;
 
-    await dbApi.addRecipe(recipe);
-    onSave();
-    onClose();
+    setIsSubmitting(true);
+    try {
+      const recipe: Recipe = {
+        id: editingRecipe?.id || generateId(),
+        name: formData.name || '未命名配方',
+        items: formData.items || [],
+        imageUrl: formData.imageUrl,
+        notes: formData.notes || '',
+        createdAt: editingRecipe?.createdAt || Date.now(),
+      };
+
+      await dbApi.addRecipe(recipe);
+      onSave();
+      onClose();
+    } catch (error) {
+      console.error('Failed to save recipe:', error);
+      alert('儲存失敗，請稍後再試');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -240,15 +251,18 @@ export function RecipeModal({ isOpen, onClose, onSave, editingRecipe, inventoryI
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               取消
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 shadow-sm"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              儲存
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSubmitting ? '儲存中...' : '儲存'}
             </button>
           </div>
         </form>

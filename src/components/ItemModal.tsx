@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SequinItem, Category, dbApi, StockStatus } from '../db';
 import { cn, generateId } from '../lib/utils';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 const PREDEFINED_COLORS = [
   '紅色', '橘色', '黃色', '綠色', '深綠', 
@@ -36,6 +36,7 @@ export function ItemModal({ isOpen, onClose, onSave, editingItem, categories }: 
 
   const [customColor, setCustomColor] = useState('');
   const [isCustomColor, setIsCustomColor] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (editingItem) {
@@ -81,23 +82,33 @@ export function ItemModal({ isOpen, onClose, onSave, editingItem, categories }: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const item: SequinItem = {
-      id: editingItem?.id || generateId(),
-      name: formData.name || '未命名',
-      category: formData.category || categories[0]?.name || '未分類',
-      imageUrl: formData.imageUrl,
-      quantity: Number(formData.quantity) || 0,
-      unit: formData.unit || '個',
-      price: Number(formData.price) || 0,
-      status: formData.status || '充足',
-      color: isCustomColor ? customColor : formData.color,
-      notes: formData.notes || '',
-      createdAt: editingItem?.createdAt || Date.now(),
-    };
+    if (isSubmitting) return;
 
-    await dbApi.addItem(item);
-    onSave();
-    onClose();
+    setIsSubmitting(true);
+    try {
+      const item: SequinItem = {
+        id: editingItem?.id || generateId(),
+        name: formData.name || '未命名',
+        category: formData.category || categories[0]?.name || '未分類',
+        imageUrl: formData.imageUrl,
+        quantity: Number(formData.quantity) || 0,
+        unit: formData.unit || '個',
+        price: Number(formData.price) || 0,
+        status: formData.status || '充足',
+        color: isCustomColor ? customColor : formData.color,
+        notes: formData.notes || '',
+        createdAt: editingItem?.createdAt || Date.now(),
+      };
+
+      await dbApi.addItem(item);
+      onSave();
+      onClose();
+    } catch (error) {
+      console.error('Failed to save item:', error);
+      alert('儲存失敗，請稍後再試');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -277,15 +288,18 @@ export function ItemModal({ isOpen, onClose, onSave, editingItem, categories }: 
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               取消
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 shadow-sm"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              儲存
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSubmitting ? '儲存中...' : '儲存'}
             </button>
           </div>
         </form>

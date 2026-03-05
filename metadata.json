@@ -1,0 +1,5 @@
+{
+  "name": "流麻亮片管理系統",
+  "description": "一個像Excel一樣的系統，用於整理流麻亮片庫存，支援圖片上傳與自訂分類。",
+  "requestFramePermissions": []
+}

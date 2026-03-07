@@ -4,6 +4,7 @@ import { localDb } from './localDb';
 import { ItemModal } from './components/ItemModal';
 import { SettingsModal } from './components/SettingsModal';
 import { RecipeModal } from './components/RecipeModal';
+import { StatisticsModal } from './components/StatisticsModal';
 import { 
   Search, 
   Plus, 
@@ -20,7 +21,8 @@ import {
   BookOpen,
   ChefHat,
   AlertCircle,
-  Loader2
+  Loader2,
+  BarChart2
 } from 'lucide-react';
 import { cn, formatCurrency, getStatusColor } from './lib/utils';
 import { format } from 'date-fns';
@@ -38,6 +40,7 @@ function App() {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
+  const [isStatisticsModalOpen, setIsStatisticsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<SequinItem | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -267,6 +270,15 @@ function App() {
     return Array.from(colors);
   }, [items]);
 
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    items.forEach(item => {
+      const cat = item.category || '未分類';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [items]);
+
   const getItemName = (id: string) => {
     const item = items.find(i => i.id === id);
     return item ? item.name : '未知物品';
@@ -396,9 +408,11 @@ function App() {
                       onChange={(e) => setSelectedCategory(e.target.value)}
                       className="w-full sm:w-auto appearance-none pl-10 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none shadow-sm cursor-pointer min-w-[140px]"
                     >
-                      <option value="all">所有分類</option>
+                      <option value="all">所有分類 ({items.length})</option>
                       {categories.map(cat => (
-                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name} ({categoryCounts[cat.name] || 0})
+                        </option>
                       ))}
                     </select>
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -450,6 +464,13 @@ function App() {
             <div className="flex items-center gap-2 w-full xl:w-auto justify-end">
             {currentTab === 'inventory' && (
               <>
+                <button
+                  onClick={() => setIsStatisticsModalOpen(true)}
+                  className="p-2.5 text-gray-600 hover:bg-white hover:shadow-sm rounded-lg border border-transparent hover:border-gray-200 transition-all"
+                  title="統計"
+                >
+                  <BarChart2 className="w-5 h-5" />
+                </button>
                 <button
                   onClick={() => setIsSettingsModalOpen(true)}
                   className="p-2.5 text-gray-600 hover:bg-white hover:shadow-sm rounded-lg border border-transparent hover:border-gray-200 transition-all"
@@ -734,6 +755,13 @@ function App() {
         onSave={fetchData}
         editingRecipe={editingRecipe}
         inventoryItems={items}
+        categories={categories}
+      />
+
+      <StatisticsModal
+        isOpen={isStatisticsModalOpen}
+        onClose={() => setIsStatisticsModalOpen(false)}
+        items={items}
         categories={categories}
       />
 

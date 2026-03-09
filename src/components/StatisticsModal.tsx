@@ -37,7 +37,7 @@ export function StatisticsModal({ isOpen, onClose, items, categories }: Statisti
          stats[catName] = { count: 0, value: 0, color: '#9ca3af' };
       }
       stats[catName].count += 1;
-      stats[catName].value += (item.price || 0) * (item.quantity || 0);
+      stats[catName].value += (item.price || 0);
     });
 
     return Object.entries(stats)
@@ -47,7 +47,7 @@ export function StatisticsModal({ isOpen, onClose, items, categories }: Statisti
   }, [items, categories]);
 
   const totalItems = items.length;
-  const totalValue = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
+  const totalValue = items.reduce((sum, item) => sum + (item.price || 0), 0);
 
   if (!isOpen) return null;
 
